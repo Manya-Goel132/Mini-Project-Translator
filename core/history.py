@@ -16,6 +16,7 @@ class HistoryManager:
     """
     Manages translation history using SQLite database
     Thread-safe with connection pooling and proper locking
+    Supports user-specific and device-specific history
     """
     
     def __init__(self, db_path="translator.db"):
@@ -58,14 +59,15 @@ class HistoryManager:
             raise e
     
     def _init_database(self):
-        """Initialize database schema"""
+        """Initialize database schema with user support"""
         with self._get_connection() as conn:
             cursor = conn.cursor()
             
-            # Create translations table
+            # Create translations table with user_id support
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS translations (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT,
                     timestamp TEXT NOT NULL,
                     original_text TEXT NOT NULL,
                     translated_text TEXT NOT NULL,
@@ -81,7 +83,25 @@ class HistoryManager:
                 )
             """)
             
+            # Add user_id column to existing table if it doesn't exist
+            try:
+                cursor.execute("ALTER TABLE translations ADD COLUMN user_id TEXT")
+                conn.commit()
+            except sqlite3.OperationalError:
+                # Column already exists
+                pass
+            
             # Create indexes for common queries
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_user_id 
+                ON translations(user_id)
+            """)
+            
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_user_date 
+                ON translations(user_id, date)
+            """)
+            
             cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_date 
                 ON translations(date)
@@ -166,7 +186,7 @@ class HistoryManager:
         except Exception as e:
             print(f"⚠️  Migration warning: {e}")
     
-    def add_entry(self, original_text, translation_result, target_lang):
+    def add_entry(self, original_text, translation_result, target_lang, user_id=None):
         """
         Add a translation entry to database
         Thread-safe with automatic retry
@@ -175,6 +195,7 @@ class HistoryManager:
             original_text: Original text
             translation_result: Translation result dict
             target_lang: Target language code
+            user_id: User identifier (user_id for registered, device_id for guest)
         
         Returns:
             bool: Success status
@@ -185,11 +206,12 @@ class HistoryManager:
                 
                 cursor.execute("""
                     INSERT INTO translations 
-                    (timestamp, original_text, translated_text, source_lang, 
+                    (user_id, timestamp, original_text, translated_text, source_lang, 
                      target_lang, method, confidence, time_taken, text_length, 
                      date, cached)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
+                    user_id,
                     datetime.now().isoformat(),
                     original_text[:5000],  # Increased limit
                     translation_result['translation'][:5000],
@@ -210,10 +232,13 @@ class HistoryManager:
             print(f"Error adding history entry: {e}")
             return False
     
-    def get_stats(self):
+    def get_stats(self, user_id=None):
         """
         Get translation statistics using SQL aggregation
         Much faster than loading all data into memory
+        
+        Args:
+            user_id: Filter by user ID (None for all users)
         
         Returns:
             dict: Statistics dictionary
@@ -222,83 +247,92 @@ class HistoryManager:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
                 
+                # Build WHERE clause for user filtering
+                where_clause = ""
+                params = []
+                if user_id:
+                    where_clause = "WHERE user_id = ?"
+                    params = [user_id]
+                
                 # Total translations
-                cursor.execute("SELECT COUNT(*) FROM translations")
+                cursor.execute(f"SELECT COUNT(*) FROM translations {where_clause}", params)
                 total = cursor.fetchone()[0]
                 
                 if total == 0:
                     return None
                 
                 # Average confidence and time
-                cursor.execute("""
+                cursor.execute(f"""
                     SELECT 
                         AVG(confidence) as avg_confidence,
                         AVG(time_taken) as avg_time
-                    FROM translations
-                """)
+                    FROM translations {where_clause}
+                """, params)
                 row = cursor.fetchone()
                 avg_confidence = row[0] or 0
                 avg_time = row[1] or 0
                 
                 # Most used languages
-                cursor.execute("""
+                cursor.execute(f"""
                     SELECT source_lang, COUNT(*) as count 
-                    FROM translations 
+                    FROM translations {where_clause}
                     GROUP BY source_lang 
                     ORDER BY count DESC 
                     LIMIT 1
-                """)
+                """, params)
                 most_source = cursor.fetchone()
                 most_used_source = most_source[0] if most_source else 'N/A'
                 
-                cursor.execute("""
+                cursor.execute(f"""
                     SELECT target_lang, COUNT(*) as count 
-                    FROM translations 
+                    FROM translations {where_clause}
                     GROUP BY target_lang 
                     ORDER BY count DESC 
                     LIMIT 1
-                """)
+                """, params)
                 most_target = cursor.fetchone()
                 most_used_target = most_target[0] if most_target else 'N/A'
                 
                 # Methods used
-                cursor.execute("""
+                cursor.execute(f"""
                     SELECT method, COUNT(*) as count 
-                    FROM translations 
+                    FROM translations {where_clause}
                     GROUP BY method
-                """)
+                """, params)
                 methods_used = {row[0]: row[1] for row in cursor.fetchall()}
                 
                 # Unique languages
-                cursor.execute("""
+                cursor.execute(f"""
                     SELECT COUNT(DISTINCT source_lang) 
-                    FROM translations
-                """)
+                    FROM translations {where_clause}
+                """, params)
                 languages_translated = cursor.fetchone()[0]
                 
                 # Today's translations
                 today = datetime.now().strftime('%Y-%m-%d')
-                cursor.execute("""
+                today_params = params + [today] if params else [today]
+                today_where = f"{where_clause} AND date = ?" if where_clause else "WHERE date = ?"
+                cursor.execute(f"""
                     SELECT COUNT(*) 
-                    FROM translations 
-                    WHERE date = ?
-                """, (today,))
+                    FROM translations {today_where}
+                """, today_params)
                 today_translations = cursor.fetchone()[0]
                 
                 # High confidence translations
-                cursor.execute("""
+                confidence_params = params + [0.9] if params else [0.9]
+                confidence_where = f"{where_clause} AND confidence > ?" if where_clause else "WHERE confidence > ?"
+                cursor.execute(f"""
                     SELECT COUNT(*) 
-                    FROM translations 
-                    WHERE confidence > 0.9
-                """)
+                    FROM translations {confidence_where}
+                """, confidence_params)
                 high_confidence = cursor.fetchone()[0]
                 
                 # Cache hit rate
-                cursor.execute("""
+                cursor.execute(f"""
                     SELECT 
                         SUM(CASE WHEN cached = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) 
-                    FROM translations
-                """)
+                    FROM translations {where_clause}
+                """, params)
                 cache_hit_rate = cursor.fetchone()[0] or 0
                 
                 return {
@@ -367,12 +401,13 @@ class HistoryManager:
             print(f"Error clearing history: {e}")
             return False
     
-    def get_recent(self, count=10):
+    def get_recent(self, count=10, user_id=None):
         """
         Get recent translations
         
         Args:
             count: Number of recent entries
+            user_id: Filter by user ID (None for all users)
         
         Returns:
             list: List of translation dictionaries
@@ -380,11 +415,20 @@ class HistoryManager:
         try:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
-                cursor.execute("""
-                    SELECT * FROM translations 
-                    ORDER BY timestamp DESC 
-                    LIMIT ?
-                """, (count,))
+                
+                if user_id:
+                    cursor.execute("""
+                        SELECT * FROM translations 
+                        WHERE user_id = ?
+                        ORDER BY timestamp DESC 
+                        LIMIT ?
+                    """, (user_id, count))
+                else:
+                    cursor.execute("""
+                        SELECT * FROM translations 
+                        ORDER BY timestamp DESC 
+                        LIMIT ?
+                    """, (count,))
                 
                 rows = cursor.fetchall()
                 return [dict(row) for row in rows]
@@ -393,10 +437,13 @@ class HistoryManager:
             print(f"Error getting recent history: {e}")
             return []
     
-    def get_all(self):
+    def get_all(self, user_id=None):
         """
         Get all translation history
         WARNING: Can be slow for large databases
+        
+        Args:
+            user_id: Filter by user ID (None for all users)
         
         Returns:
             list: List of all translation dictionaries
@@ -404,7 +451,12 @@ class HistoryManager:
         try:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
-                cursor.execute("SELECT * FROM translations ORDER BY timestamp DESC")
+                
+                if user_id:
+                    cursor.execute("SELECT * FROM translations WHERE user_id = ? ORDER BY timestamp DESC", (user_id,))
+                else:
+                    cursor.execute("SELECT * FROM translations ORDER BY timestamp DESC")
+                
                 rows = cursor.fetchall()
                 return [dict(row) for row in rows]
                 
@@ -412,7 +464,7 @@ class HistoryManager:
             print(f"Error getting all history: {e}")
             return []
     
-    def search(self, query, field='original_text', limit=100):
+    def search(self, query, field='original_text', limit=100, user_id=None):
         """
         Search translations by text
         
@@ -420,6 +472,7 @@ class HistoryManager:
             query: Search query
             field: Field to search ('original_text' or 'translated_text')
             limit: Maximum results
+            user_id: Filter by user ID (None for all users)
         
         Returns:
             list: Matching translations
@@ -432,12 +485,21 @@ class HistoryManager:
         try:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
-                cursor.execute(f"""
-                    SELECT * FROM translations 
-                    WHERE {field} LIKE ? 
-                    ORDER BY timestamp DESC 
-                    LIMIT ?
-                """, (f'%{query}%', limit))
+                
+                if user_id:
+                    cursor.execute(f"""
+                        SELECT * FROM translations 
+                        WHERE user_id = ? AND {field} LIKE ? 
+                        ORDER BY timestamp DESC 
+                        LIMIT ?
+                    """, (user_id, f'%{query}%', limit))
+                else:
+                    cursor.execute(f"""
+                        SELECT * FROM translations 
+                        WHERE {field} LIKE ? 
+                        ORDER BY timestamp DESC 
+                        LIMIT ?
+                    """, (f'%{query}%', limit))
                 
                 rows = cursor.fetchall()
                 return [dict(row) for row in rows]

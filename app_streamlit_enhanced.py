@@ -41,6 +41,13 @@ except ImportError as e:
     st.warning(f"⚠️ Audio module issue: {e}")
     AUDIO_AVAILABLE = False
 
+try:
+    from core.user_auth import StreamlitAuth
+    AUTH_AVAILABLE = True
+except ImportError as e:
+    st.warning(f"⚠️ Authentication module issue: {e}")
+    AUTH_AVAILABLE = False
+
 CORE_MODULES_AVAILABLE = TRANSLATOR_AVAILABLE and HISTORY_AVAILABLE
 
 
@@ -67,6 +74,32 @@ def main():
             st.warning("History functionality unavailable")
         if not AUDIO_AVAILABLE:
             st.warning("Audio functionality unavailable")
+        if not AUTH_AVAILABLE:
+            st.warning("Authentication functionality unavailable")
+    
+    # Initialize authentication
+    if AUTH_AVAILABLE:
+        if 'auth' not in st.session_state:
+            st.session_state.auth = StreamlitAuth()
+        
+        auth = st.session_state.auth
+        
+        # Show authentication UI if not authenticated
+        if not auth.is_authenticated():
+            st.markdown("## 🔐 Welcome to AI Language Translator")
+            st.markdown("Please authenticate to access personalized features and history.")
+            
+            if auth.show_auth_ui():
+                st.rerun()
+            return
+        
+        # Show user info in sidebar
+        auth.show_user_info()
+        
+        # Get current user ID for history filtering
+        current_user_id = auth.get_user_id()
+    else:
+        current_user_id = None
     
     # Custom CSS
     st.markdown("""
@@ -182,7 +215,7 @@ def main():
         # Statistics
         st.subheader("📈 Statistics")
         if st.button("📊 View Detailed Stats", use_container_width=True):
-            stats = history_manager.get_stats()
+            stats = history_manager.get_stats(user_id=current_user_id)
             if stats:
                 st.markdown("### 📊 Translation Statistics")
                 
@@ -215,7 +248,18 @@ def main():
         col1, col2 = st.columns(2)
         with col1:
             if st.button("📥 Export", use_container_width=True):
-                history_data = history_manager.export_history('json', limit=1000)
+                # Export user-specific history
+                if current_user_id:
+                    # Get user-specific data for export
+                    user_history = history_manager.get_all(user_id=current_user_id)
+                    if user_history:
+                        import json
+                        history_data = json.dumps(user_history, indent=2)
+                    else:
+                        history_data = None
+                else:
+                    history_data = history_manager.export_history('json', limit=1000)
+                
                 if history_data:
                     st.download_button(
                         "💾 Download JSON",
@@ -230,7 +274,14 @@ def main():
         with col2:
             if st.button("🗑️ Clear", use_container_width=True):
                 if st.session_state.get('confirm_clear', False):
-                    history_manager.clear_history()
+                    if current_user_id:
+                        # Clear only user-specific history
+                        with st.session_state.history_manager._get_connection() as conn:
+                            cursor = conn.cursor()
+                            cursor.execute("DELETE FROM translations WHERE user_id = ?", (current_user_id,))
+                            conn.commit()
+                    else:
+                        history_manager.clear_history()
                     st.session_state.confirm_clear = False
                     st.success("✅ History cleared!")
                     st.rerun()
@@ -241,7 +292,11 @@ def main():
         # Database info
         db_size = history_manager.get_database_size()
         if db_size:
-            st.caption(f"💾 Database: {db_size['size_human']} ({db_size['record_count']} records)")
+            if current_user_id:
+                user_count = len(history_manager.get_all(user_id=current_user_id))
+                st.caption(f"💾 Your history: {user_count} records")
+            else:
+                st.caption(f"💾 Database: {db_size['size_human']} ({db_size['record_count']} records)")
     
     # Main interface with tabs
     tab1, tab2, tab3, tab4 = st.tabs(["📝 Translate", "🎤 Voice Input", "📁 File Upload", "📚 History"])
@@ -381,7 +436,7 @@ def main():
                             
                             # Auto-save to history
                             if save_history:
-                                history_manager.add_entry(input_text.strip(), result, target_lang)
+                                history_manager.add_entry(input_text.strip(), result, target_lang, user_id=current_user_id)
                                 st.success("✅ Translation saved to history!")
                         
                         else:
@@ -557,7 +612,8 @@ def main():
                                 history_manager.add_entry(
                                     st.session_state.voice_transcription,
                                     result,
-                                    voice_target
+                                    voice_target,
+                                    user_id=current_user_id
                                 )
                                 st.success("✅ Saved!")
                     else:
@@ -650,7 +706,7 @@ def main():
                             
                             # Save to history
                             if save_history:
-                                history_manager.add_entry(file_content, result, target_lang)
+                                history_manager.add_entry(file_content, result, target_lang, user_id=current_user_id)
                         else:
                             st.error("❌ Translation failed")
             
@@ -676,11 +732,11 @@ def main():
         
         # Get history
         if search_query:
-            recent_history = history_manager.search(search_query, limit=history_limit)
+            recent_history = history_manager.search(search_query, limit=history_limit, user_id=current_user_id)t=history_limit)
             st.caption(f"🔍 Found {len(recent_history)} results")
         else:
-            recent_history = history_manager.get_recent(history_limit)
-            total_count = len(history_manager.get_all())
+            recent_history = history_manager.get_recent(history_limit, user_id=current_user_id)
+            total_count = len(history_manager.get_all(user_id=current_user_id))
             st.caption(f"📊 Showing last {min(history_limit, total_count)} of {total_count:,} translations")
         
         if recent_history:
@@ -758,8 +814,12 @@ def main():
     
     with col3:
         st.markdown("**📊 Status**")
-        total = len(history_manager.get_all())
-        st.caption(f"{total:,} translations")
+        if current_user_id:
+            total = len(history_manager.get_all(user_id=current_user_id))
+            st.caption(f"{total:,} your translations")
+        else:
+            total = len(history_manager.get_all())
+            st.caption(f"{total:,} translations")
     
     with col4:
         st.markdown("**💾 Cache**")
