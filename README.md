@@ -7,7 +7,7 @@
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-red.svg)](https://streamlit.io/)
 [![Redis](https://img.shields.io/badge/Redis-5.0+-red.svg)](https://redis.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Deploy](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://mini-project-translatornow.streamlit.app/)
+[![Deploy](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://mini-project-translator.streamlit.app/)
 
 An advanced AI-powered language translation system featuring multiple AI backends, offline capabilities, voice input/output, distributed task processing, persistent storage, and a modern async API. Built for production with high performance, scalability, and reliability.
 

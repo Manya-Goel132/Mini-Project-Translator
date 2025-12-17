@@ -16,7 +16,7 @@ This guide will help you deploy the AI Language Translator to Streamlit Cloud.
 git init
 
 # 2. Add remote repository
-git remote add origin https://github.com/Manya-Goel132/Mini-Project-TranslatorNow.git
+git remote add origin https://github.com/Manya-Goel132/Mini-Project-Translator.git
 
 # 3. Stage and commit all files
 git add .
@@ -36,7 +36,7 @@ git push -u origin main --force
 2. **Create New App**:
    - Click "New app"
    - Select "From existing repo"
-   - Choose: `Manya-Goel132/Mini-Project-TranslatorNow`
+   - Choose: `Manya-Goel132/Mini-Project-Translator`
    - Branch: `main`
    - Main file path: `streamlit_app.py`
 
@@ -45,7 +45,7 @@ git push -u origin main --force
    - Wait for deployment (2-5 minutes)
 
 4. **Access Your App**:
-   - URL: `https://mini-project-translatornow.streamlit.app/`
+   - URL: `https://mini-project-translator.streamlit.app/`
 
 ## 🔧 Streamlit Cloud Configuration
 
@@ -81,7 +81,7 @@ The app automatically detects Streamlit Cloud and configures itself:
 
 ### App Structure
 ```
-Mini-Project-TranslatorNow/
+Mini-Project-Translator/
 ├── streamlit_app.py          # Streamlit Cloud entry point
 ├── app_streamlit_enhanced.py # Main Streamlit application
 ├── requirements.txt          # Python dependencies
@@ -179,4 +179,4 @@ After deployment, verify:
 
 Your AI Language Translator is now live and ready to use! 🚀
 
-**Live URL**: https://mini-project-translatornow.streamlit.app/
+**Live URL**: https://mini-project-translator.streamlit.app/

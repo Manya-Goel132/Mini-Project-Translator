@@ -13,7 +13,7 @@ fi
 # Add remote repository
 echo "🔗 Adding remote repository..."
 git remote remove origin 2>/dev/null || true
-git remote add origin https://github.com/Manya-Goel132/Mini-Project-TranslatorNow.git
+git remote add origin https://github.com/Manya-Goel132/Mini-Project-Translator.git
 
 # Create .gitignore if it doesn't exist
 if [ ! -f ".gitignore" ]; then
@@ -58,9 +58,9 @@ echo ""
 echo "🌐 Next steps:"
 echo "1. Go to https://share.streamlit.io"
 echo "2. Click 'New app'"
-echo "3. Connect to: https://github.com/Manya-Goel132/Mini-Project-TranslatorNow"
+echo "3. Connect to: https://github.com/Manya-Goel132/Mini-Project-Translator"
 echo "4. Set main file: streamlit_app.py"
 echo "5. Deploy!"
 echo ""
 echo "📱 Your app will be available at:"
-echo "https://mini-project-translatornow.streamlit.app/"
+echo "https://mini-project-translator.streamlit.app/"

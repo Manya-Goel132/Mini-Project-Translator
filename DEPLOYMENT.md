@@ -205,6 +205,11 @@ export LOG_LEVEL=debug
 streamlit run app_streamlit_enhanced.py
 ```
 
+### Correct Repository
+Make sure you're using the correct repository:
+- **Correct**: https://github.com/Manya-Goel132/Mini-Project-Translator
+- **App URL**: https://mini-project-translator.streamlit.app/
+
 ## 📈 Deployment Strategies
 
 ### Blue-Green Deployment
