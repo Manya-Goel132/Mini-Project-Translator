@@ -732,7 +732,7 @@ def main():
         
         # Get history
         if search_query:
-            recent_history = history_manager.search(search_query, limit=history_limit, user_id=current_user_id)t=history_limit)
+            recent_history = history_manager.search(search_query, limit=history_limit, user_id=current_user_id)
             st.caption(f"🔍 Found {len(recent_history)} results")
         else:
             recent_history = history_manager.get_recent(history_limit, user_id=current_user_id)
