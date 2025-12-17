@@ -1,0 +1,30 @@
+streamlit>=1.28.0
+transformers>=4.30.0
+torch>=2.0.0
+langdetect>=1.0.9
+gtts>=2.3.0
+pygame>=2.5.0
+deep-translator>=1.11.4
+sentence-transformers>=2.2.2
+numpy>=1.24.0
+pandas>=2.0.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+flask>=2.0.0
+flask-cors>=4.0.0
+
+# Centralized caching and state management
+redis>=5.0.0
+celery>=5.3.0
+diskcache>=5.6.0
+
+# Async API and HTTP client
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+httpx>=0.25.0
+
+# Speech recognition and TTS
+SpeechRecognition>=3.10.0
+pydub>=0.25.1
+pyttsx3>=2.90
+pocketsphinx>=5.0.0
