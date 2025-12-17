@@ -22,13 +22,26 @@ if IS_STREAMLIT_CLOUD:
 # Import core modules with error handling
 try:
     from core.translator import AITranslator
-    from core.history import HistoryManager
-    from core.audio_async import StreamlitAudioManager
-    CORE_MODULES_AVAILABLE = True
+    TRANSLATOR_AVAILABLE = True
 except ImportError as e:
-    st.error(f"❌ Core modules not available: {e}")
-    st.info("💡 Some features may be limited")
-    CORE_MODULES_AVAILABLE = False
+    st.warning(f"⚠️ Translator module issue: {e}")
+    TRANSLATOR_AVAILABLE = False
+
+try:
+    from core.history import HistoryManager
+    HISTORY_AVAILABLE = True
+except ImportError as e:
+    st.warning(f"⚠️ History module issue: {e}")
+    HISTORY_AVAILABLE = False
+
+try:
+    from core.audio_async import StreamlitAudioManager
+    AUDIO_AVAILABLE = True
+except ImportError as e:
+    st.warning(f"⚠️ Audio module issue: {e}")
+    AUDIO_AVAILABLE = False
+
+CORE_MODULES_AVAILABLE = TRANSLATOR_AVAILABLE and HISTORY_AVAILABLE
 
 
 def create_download_link(text, filename, link_text):
@@ -47,10 +60,13 @@ def main():
     
     # Check if core modules are available
     if not CORE_MODULES_AVAILABLE:
-        st.error("❌ Core modules not available. Please check the deployment.")
-        st.info("💡 This might be a temporary issue during deployment. Please refresh the page.")
-        st.stop()
-        return
+        st.error("❌ Some core modules not available. Running with limited functionality.")
+        if not TRANSLATOR_AVAILABLE:
+            st.error("Translation functionality unavailable")
+        if not HISTORY_AVAILABLE:
+            st.warning("History functionality unavailable")
+        if not AUDIO_AVAILABLE:
+            st.warning("Audio functionality unavailable")
     
     # Custom CSS
     st.markdown("""
@@ -98,9 +114,21 @@ def main():
     # Initialize components
     if 'translator' not in st.session_state:
         with st.spinner("🚀 Initializing AI Translator..."):
-            st.session_state.translator = AITranslator()
-            st.session_state.history_manager = HistoryManager()
-            st.session_state.audio_manager = StreamlitAudioManager()
+            if TRANSLATOR_AVAILABLE:
+                st.session_state.translator = AITranslator()
+            else:
+                st.session_state.translator = None
+                
+            if HISTORY_AVAILABLE:
+                st.session_state.history_manager = HistoryManager()
+            else:
+                st.session_state.history_manager = None
+                
+            if AUDIO_AVAILABLE:
+                st.session_state.audio_manager = StreamlitAudioManager()
+            else:
+                st.session_state.audio_manager = None
+                
             st.session_state.voice_input = ""
     
     translator = st.session_state.translator

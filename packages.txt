@@ -3,3 +3,10 @@ espeak-data
 libespeak1
 libespeak-dev
 ffmpeg
+portaudio19-dev
+python3-pyaudio
+libasound2-dev
+pulseaudio
+alsa-utils
+sox
+libsox-fmt-all

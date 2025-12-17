@@ -3,11 +3,18 @@ Text-to-Speech audio management
 """
 
 from gtts import gTTS
-import pygame
 import os
 import time
 import threading
 from pathlib import Path
+
+# Import pygame with fallback
+try:
+    import pygame
+    PYGAME_AVAILABLE = True
+except ImportError:
+    PYGAME_AVAILABLE = False
+    pygame = None
 
 
 class AudioManager:
@@ -29,6 +36,8 @@ class AudioManager:
     
     def _init_audio(self):
         """Initialize audio system with error handling"""
+        if not PYGAME_AVAILABLE:
+            return False
         try:
             pygame.mixer.pre_init(frequency=22050, size=-16, channels=2, buffer=512)
             pygame.mixer.init()
@@ -67,7 +76,7 @@ class AudioManager:
     
     def play_audio(self, audio_file):
         """Play audio file"""
-        if not self.audio_available:
+        if not self.audio_available or not PYGAME_AVAILABLE:
             return False, "Audio system not available"
         
         try:
@@ -81,7 +90,7 @@ class AudioManager:
     
     def stop_audio(self):
         """Stop current audio playback"""
-        if not self.audio_playing:
+        if not self.audio_playing or not PYGAME_AVAILABLE:
             return True
         
         try:
@@ -116,8 +125,9 @@ class AudioManager:
                     return
                 
                 # Wait for playback to finish
-                while pygame.mixer.music.get_busy():
-                    time.sleep(0.1)
+                if PYGAME_AVAILABLE:
+                    while pygame.mixer.music.get_busy():
+                        time.sleep(0.1)
                 
                 self.audio_playing = False
                 
