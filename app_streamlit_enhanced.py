@@ -5,21 +5,30 @@ With voice input, file upload, and advanced features
 
 import streamlit as st
 import os
+import sys
 from datetime import datetime
-from core.translator import AITranslator
-from core.history import HistoryManager
-from core.audio_async import StreamlitAudioManager
 import io
 import base64
 
 # Detect Streamlit Cloud environment
-IS_STREAMLIT_CLOUD = os.getenv('STREAMLIT_SHARING_MODE') or 'streamlit.io' in os.getenv('HOSTNAME', '')
+IS_STREAMLIT_CLOUD = os.getenv('STREAMLIT_SHARING_MODE') or 'streamlit.io' in os.getenv('HOSTNAME', '') or 'streamlit' in os.getenv('HOME', '')
 
 # Configure for Streamlit Cloud
 if IS_STREAMLIT_CLOUD:
     os.environ['OFFLINE_MODE'] = 'false'
     os.environ['USE_REDIS'] = 'false'
     os.environ['USE_CELERY'] = 'false'
+
+# Import core modules with error handling
+try:
+    from core.translator import AITranslator
+    from core.history import HistoryManager
+    from core.audio_async import StreamlitAudioManager
+    CORE_MODULES_AVAILABLE = True
+except ImportError as e:
+    st.error(f"❌ Core modules not available: {e}")
+    st.info("💡 Some features may be limited")
+    CORE_MODULES_AVAILABLE = False
 
 
 def create_download_link(text, filename, link_text):
@@ -35,6 +44,13 @@ def main():
         layout="wide",
         initial_sidebar_state="expanded"
     )
+    
+    # Check if core modules are available
+    if not CORE_MODULES_AVAILABLE:
+        st.error("❌ Core modules not available. Please check the deployment.")
+        st.info("💡 This might be a temporary issue during deployment. Please refresh the page.")
+        st.stop()
+        return
     
     # Custom CSS
     st.markdown("""
