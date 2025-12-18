@@ -36,10 +36,11 @@ An advanced AI-powered language translation system featuring multiple AI backend
 - **Command Line Tools** - Scriptable automation capabilities
 
 ### 🔧 Advanced Features
+- **🔐 User Authentication** - Secure accounts or guest sessions with personalized history
 - **🔌 Offline Mode** - Works without internet using local AI models
 - **🎤 Voice Input** - Speech-to-text with multiple engines (Google, Sphinx)
 - **🔊 Text-to-Speech** - Streaming audio without temp files (online/offline)
-- **📚 Translation History** - SQLite database with search and analytics
+- **📚 Personal History** - User-specific translation history with analytics
 - **💾 Redis Caching** - Shared cache across all applications
 - **⚡ Celery Task Queue** - Background processing with progress tracking
 - **📖 Auto Documentation** - Interactive API docs at `/docs`
@@ -61,6 +62,8 @@ An advanced AI-powered language translation system featuring multiple AI backend
 
 ## 🚀 Quick Start
 
+### 🍎 **First-time macOS users**: See [MACOS_SETUP_GUIDE.md](MACOS_SETUP_GUIDE.md) for detailed step-by-step instructions
+
 ### Prerequisites
 
 - Python 3.9+
@@ -71,8 +74,8 @@ An advanced AI-powered language translation system featuring multiple AI backend
 
 ```bash
 # 1. Clone the repository
-git clone <repository-url>
-cd language-translator
+git clone https://github.com/Manya-Goel132/Mini-Project-Translator.git
+cd Mini-Project-Translator
 
 # 2. Install Redis
 # macOS
@@ -86,11 +89,15 @@ sudo systemctl start redis
 # Verify Redis
 redis-cli ping  # Should return: PONG
 
-# 3. Install Python dependencies
+# 3. Create virtual environment (recommended)
+python3 -m venv translator_env
+source translator_env/bin/activate  # On Windows: translator_env\Scripts\activate
+
+# 4. Install Python dependencies
 pip install -r requirements.txt
 
-# 4. Start all services
-./start_services.sh
+# 5. Start the application
+streamlit run app_streamlit_enhanced.py
 ```
 
 ### Run Individual Components
